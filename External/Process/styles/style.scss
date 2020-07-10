@@ -1,9 +1,11 @@
+@import 'arrows';
+
 $base-color: rgba(0, 100, 204, 1);
 $finished-color: rgba(87, 185, 79, 1);
 $future-color: rgba(255, 255, 255, 1);
 $base-color-opaque: lighten($base-color, 15%);;
 $finished-color-opaque: lighten($finished-color, 15%);;
-$future-color-opaque: darken($future-color, 15%);;
+$future-color-opaque: darken($future-color, 15%);
 
 body{
   overflow: hidden;
@@ -28,6 +30,7 @@ body{
     flex-direction: column;
     height: initial;
   }
+
 
   &__select-button {
     min-width: 300px;
@@ -170,6 +173,8 @@ body{
     min-width: 10px;
     height: 45px;
     margin-bottom: 5px; 
+    user-select: none;
+    cursor: pointer;
 
     &.selected {
       //opacity: 0.7;
@@ -268,39 +273,5 @@ body{
   .steps li:last-child {
     border-radius: 0 11px 11px 0;
   }
-  
-  // Scroll arrows
-  .scroll-arrow {
-    z-index: 10;
-    position: absolute;
-    width: 25px;
-    height: 100%;
-
-    background-color: #717171;
-    cursor: pointer;
-
-    //background-image: url('./src/icon-back.svg');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 31%;
-&--left {
-    left: 0;
-    top: 0;
-
-    border-radius: 0 11px 11px 0;
-    transform: rotate(180deg)
-}
-&--right {
-    right: 0;
-    top: 0;
-    border-radius: 0 11px 11px 0;
-}
-}
-
-@media only screen and (min-width: 1010px) {
-.scroll-arrow {
-    display: none;
-}
-}
 
 

@@ -1,3 +1,31 @@
+.scroll-arrow {
+  z-index: 10;
+  position: absolute;
+  width: 25px;
+  height: 45px;
+  top: 24px;
+  background-color: #717171;
+  cursor: pointer;
+  background-image: url("./img/icon-back.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 31%;
+}
+.scroll-arrow--left {
+  left: 0;
+  border-radius: 0 11px 11px 0;
+  transform: rotate(180deg);
+}
+.scroll-arrow--right {
+  right: 0;
+  border-radius: 0 11px 11px 0;
+}
+
+@media only screen and (min-width: 1010px) {
+  .scroll-arrow {
+    display: none;
+  }
+}
 body {
   overflow: hidden;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -141,6 +169,8 @@ body {
   min-width: 10px;
   height: 45px;
   margin-bottom: 5px;
+  user-select: none;
+  cursor: pointer;
 }
 .steps > li.selected .steps__index {
   font-size: 0;
@@ -253,35 +283,6 @@ body {
 
 .steps li:last-child {
   border-radius: 0 11px 11px 0;
-}
-
-.scroll-arrow {
-  z-index: 10;
-  position: absolute;
-  width: 25px;
-  height: 100%;
-  background-color: #717171;
-  cursor: pointer;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 31%;
-}
-.scroll-arrow--left {
-  left: 0;
-  top: 0;
-  border-radius: 0 11px 11px 0;
-  transform: rotate(180deg);
-}
-.scroll-arrow--right {
-  right: 0;
-  top: 0;
-  border-radius: 0 11px 11px 0;
-}
-
-@media only screen and (min-width: 1010px) {
-  .scroll-arrow {
-    display: none;
-  }
 }
 
 /*# sourceMappingURL=processControl.css.map */
