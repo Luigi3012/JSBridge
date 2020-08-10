@@ -14,15 +14,13 @@
         var completedState = "completed";
         var futureState = "future";
         var processControlConfiguration;
-        var stepArray;
-        var classNameStepValueDict = {};
-        var stepValueClassNameDict = {};
         var selectedView = "General";
         var readOnly = false;
         var selectedStepElement;
         var descElement;
         var buttonCurrentLabel;
         var buttonCompleteLabel;
+        var processSteps = [];
 
         function init(){
             var urlParams = new URLSearchParams(window.location.search);
@@ -119,36 +117,41 @@
         function setUpProcessArrows(jsonConfig){      
             loadColorSettings();
             processControlConfiguration = jsonConfig;
-            urlDecodeStepDescriptions();
-            stepArray = processControlConfiguration.steps;
+            processSteps = decodeStepDescriptions();
             var stepContainer = document.getElementById("stepContainer");
-            for(var field of processControlConfiguration.steps){
-                let desc = field.description !== "undefined" ? field.description : "";
-                stepContainer.appendChild(htmlToElements(createArrow2(field.label, field.value, desc, stepArray.indexOf(field) + 1)))
+            for(var step of processSteps){
+                //let desc = field.shortDescription !== "undefined" ? field.shortDescription : "";
+                stepContainer.appendChild(htmlToElements(createArrow2(step)))
             }
             loadCurrentStepFromEntity();
         }   
 
-        function urlDecodeStepDescriptions(){
+        function decodeStepDescriptions(){
+            var stepObjects = [];
             for(var s of processControlConfiguration.steps){                
                 s.value = decodeURIComponent(s.value);
                 s.label = decodeURIComponent(s.label);
+                var processStepObj = new ProcessStep(s.label, s.value);
                 if(s.description){            
                     s.description = decodeURIComponent(s.description);                 
+                    processStepObj.shortDescription = s.description;
                     //decodeURIComponent(s.longDescription);
                     //decodeURIComponent(s.descriptionUrl);
                 }
-            }      
+                if(s.isFinal)
+                    processStepObj.isFinal = s.isFinal;
+                processStepObj.index = stepObjects.length;
+                stepObjects.push(processStepObj);
+            }     
+            return stepObjects; 
         }
 
-        function createArrow2(name, value, description, index){
-            var sanitizedVal = makeSafeForCSS(value);
-            classNameStepValueDict[sanitizedVal] = value;
-            stepValueClassNameDict[value] = sanitizedVal;
-            var arrowHtml = "<li id="+ sanitizedVal +" class=\"future\" onclick=\"arrowClicked(this.id)\">" +
+        function createArrow2(step){
+            var index = step.index + 1;
+            var arrowHtml = "<li id="+ step.id +" class=\"future\" onclick=\"arrowClicked(this.id)\">" +
             "<i class=\"steps__index\">"+ index +"</i>"+
             "<span class=\"steps__text\">" +
-            name
+            step.label
             "</span>" +
             "</li>";
             return arrowHtml;
@@ -194,9 +197,8 @@
             element.className += " selected";
             selectedStepElement = element;
             updateCompleteButton(selectedStepElement);
-            let val = classNameStepValueDict[element.id];
-            var step = stepArray.find(s => s.value === val);
-            var stepDesc = (step.description === "undefined" ? "": step.description);
+            var step = processSteps.find(s => s.id === element.id);
+            var stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);
             descElement.innerHTML = stepDesc;                          
         }
 
@@ -222,14 +224,12 @@
             if(!readOnly){           
                 var elementId = element.id;   
                 var stateFromClass = element.className;
-                let val = classNameStepValueDict[elementId];
-                var step = stepArray.find(s => s.value === val);         
+                var step = processSteps.find(s => s.id === elementId);         
                 if(step){
-                    var stepIndex = stepArray.indexOf(step); 
-                    setStepOnEntity(elementId);
+                    setStepOnEntity(step.textValue);
                     setArrowCssClass(element, activeState, true);
-                    setPreviousElementsToState(stepIndex, completedState);
-                    setNextElementsToState(stepIndex, futureState);
+                    setPreviousElementsToState(step.index, completedState);
+                    setNextElementsToState(step.index, futureState);
                 }
             }
         }
@@ -238,15 +238,13 @@
             if(!readOnly){           
                 var elementId = element.id;   
                 var stateFromClass = element.className;
-                let val = classNameStepValueDict[elementId];
-                var step = stepArray.find(s => s.value === val);         
+                var step = processSteps.find(s => s.id === elementId);            
                 if(step){
-                    var stepIndex = stepArray.indexOf(step); 
                     setArrowCssClass(element, completedState);               
-                    setPreviousElementsToState(stepIndex, completedState);
-                    setNextElementsToState(stepIndex, futureState);
-                    if(stepArray.length > stepIndex + 1){
-                        var nextElement = document.getElementById(stepValueClassNameDict[stepArray[stepIndex + 1].value]);
+                    setPreviousElementsToState(step.index, completedState);
+                    setNextElementsToState(step.index, futureState);
+                    if(processSteps.length > step.index + 1){
+                        var nextElement = document.getElementById(processSteps[step.index + 1].id);
                         setArrowActive(nextElement);
                     }
                     else{
@@ -261,37 +259,35 @@
             if(!readOnly){           
                 var elementId = element.id;   
                 var stateFromClass = element.className;
-                let val = classNameStepValueDict[elementId];
-                var step = stepArray.find(s => s.value === val);         
+                var step = processSteps.find(s => s.id === elementId);          
                 if(step){
-                    var stepIndex = stepArray.indexOf(step); 
                     switch(stateFromClass) {
                     case activeState:                                     
                         setArrowCssClass(element, completedState);
-                        setPreviousElementsToState(stepIndex, completed);
-                        setNextElementsToState(stepIndex, futureState);
+                        setPreviousElementsToState(step.index, completed);
+                        setNextElementsToState(step.index, futureState);
                         break;
                     case completedState:
-                        setStepOnEntity(elementId);
+                        setStepOnEntity(step.textValue);
                         setArrowCssClass(element, activeState);
-                        setPreviousElementsToState(stepIndex, completedState);
-                        setNextElementsToState(stepIndex, futureState);
+                        setPreviousElementsToState(step.index, completedState);
+                        setNextElementsToState(step.index, futureState);
                         break;
                     case futureState:                
-                        setStepOnEntity(elementId);
+                        setStepOnEntity(step.textValue);
                         setArrowCssClass(element, activeState);
-                        setPreviousElementsToState(stepIndex, completedState);
-                        setNextElementsToState(stepIndex, futureState);
+                        setPreviousElementsToState(step.index, completedState);
+                        setNextElementsToState(step.index, futureState);
                         break;
                     } 
                 }
             }
         }
 
-        function setStepOnEntity(stepValue){
+        function setStepOnEntity(value){
             MobileCRM.UI.EntityForm.requestObject(
                 function (entityForm) {
-                    entityForm.entity.properties[processControlConfiguration.field] = classNameStepValueDict[stepValue];
+                    entityForm.entity.properties[processControlConfiguration.field] = value
                     MobileCRM.UI.EntityForm.save();
                 },
                 function (err) { MobileCRM.bridge.alert(err); }
@@ -314,13 +310,12 @@
                 setNextElementsToState(-1, futureState);
             }
             else{
-                var step = stepArray.find(s => s.value === stepValue + "");
-                var element = document.getElementById(stepValueClassNameDict[stepValue]);            
+                var step = processSteps.find(s => s.textValue === stepValue + "");
+                var element = document.getElementById(step.id);            
                 if(element){            
-                    var stepIndex = stepArray.indexOf(step); 
                     setArrowCssClass(element, activeState);
-                    setPreviousElementsToState(stepIndex, completedState);
-                    setNextElementsToState(stepIndex, futureState);
+                    setPreviousElementsToState(step.index, completedState);
+                    setNextElementsToState(step.index, futureState);
                     setSelectedArrowState(element);
                 }      
             }       
@@ -338,14 +333,14 @@
 
         function setPreviousElementsToState(index, state){
             for(var i = 0; i < index; i++){
-                var element = document.getElementById(stepValueClassNameDict[stepArray[i].value]);
+                var element = document.getElementById(processSteps[i].id);
                 setArrowCssClass(element, state);
             }
         }
 
         function setNextElementsToState(index, state){
-            for(var i = index + 1; i < stepArray.length; i++){
-                var element = document.getElementById(stepValueClassNameDict[stepArray[i].value]);
+            for(var i = index + 1; i < processSteps.length; i++){
+                var element = document.getElementById(processSteps[i].id);
                 setArrowCssClass(element, state);
             }
         }
@@ -356,6 +351,12 @@
             element.className = state;                
         }
 
+        function moveLeft(){
+        }
+
+        function moveRight(){
+        }
+
         function makeSafeForCSS(name) {
             return name.replace(/[^a-z0-9]/g, function(s) {
                 var c = s.charCodeAt(0);
@@ -364,11 +365,29 @@
                 return '__' + ('000' + c.toString(16)).slice(-4);
             });
         }
+
+        class ProcessStep{
+            /*label;
+            textValue;
+            id;
+            shortDescription = ""; // LongDescription, DescriptionUrl
+            isFinal = false;
+            element;
+            index;*/
+
+            constructor(label, textValue){
+                this.label = label;
+                this.textValue = textValue;
+                this.id = makeSafeForCSS(textValue);
+            }
+
+        }
+        
     </script>
     <div class="stepScrollableContrainer">
-        <!--div class="scroll-arrow scroll-arrow--left"></div-->
+        <div class="scroll-arrow scroll-arrow--left" onclick="moveLeft()"></div>
         <ul id="stepContainer" class="steps"></ul>
-        <!--div class="scroll-arrow scroll-arrow--right"></div-->
+        <div class="scroll-arrow scroll-arrow--right" onclick="moveRight()"></div>
     </div>   
     <div class="stepProperties">
         <div id="descriptionContainer" class="stepProperties__description"></div>
