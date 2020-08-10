@@ -132,6 +132,7 @@
                 s.value = decodeURIComponent(s.value);
                 s.label = decodeURIComponent(s.label);
                 var processStepObj = new ProcessStep(s.label, s.value);
+                processStepObj.shortDescription = "";
                 if(s.description){            
                     s.description = decodeURIComponent(s.description);                 
                     processStepObj.shortDescription = s.description;
@@ -352,9 +353,23 @@
         }
 
         function moveLeft(){
+            if(selectedStepElement){
+                var current = processSteps.find(s => s.id === selectedStepElement.id);
+                if(current && current.index - 1 > 0){
+                    var target = document.getElementById(processSteps[current.index - 1].id);
+                    setSelectedArrowState(target);
+                }
+            }          
         }
 
         function moveRight(){
+            if(selectedStepElement){
+                var current = processSteps.find(s => s.id === selectedStepElement.id);
+                if(current && processSteps.length > current.index + 1){
+                    var target = document.getElementById(processSteps[current.index + 1].id);
+                    setSelectedArrowState(target);
+                }
+            }
         }
 
         function makeSafeForCSS(name) {
