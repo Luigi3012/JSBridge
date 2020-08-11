@@ -8,7 +8,7 @@
     <script src="../JSBridge.js"></script>
     <link rel="stylesheet" type="text/css" href="processControl.css">
 </head>
-<body onload="init()">
+<body onload="init()" onresize="evaluateArrows()">
 	<script>
         var activeState = "active";
         var completedState = "completed";
@@ -22,6 +22,8 @@
         var descIconElement;
         var buttonCurrentLabel;
         var buttonCompleteLabel;
+        var stepContainer;
+        var scrollArrows;
 
         var processSteps = [];
 
@@ -31,6 +33,7 @@
             descElement = document.getElementById("descriptionContainer");
             descIconElement = document.getElementById("descriptionIcon");
             descIconElement.style.display = "none";
+            scrollArrows = document.getElementsByClassName("scroll-arrow");
             var btn = document.getElementById('completeBtn');
             buttonCurrentLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Current", "Mark as Current Stage");
             buttonCompleteLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Completed", "Mark as Completed");
@@ -123,7 +126,7 @@
             loadColorSettings();
             processControlConfiguration = jsonConfig;
             processSteps = decodeStepDescriptions();
-            var stepContainer = document.getElementById("stepContainer");
+            stepContainer = document.getElementById("stepContainer");
             for(var step of processSteps){
                 //let desc = field.shortDescription !== "undefined" ? field.shortDescription : "";
                 stepContainer.appendChild(htmlToElements(createArrow2(step)))
@@ -209,7 +212,8 @@
             descElement.innerHTML = stepDesc;  
             // Show asterisk if comment is filled
             if(stepDesc)
-                descIconElement.style.display = "block";                                             
+                descIconElement.style.display = "block";          
+            evaluateArrows();                                   
         }
 
         function updateCompleteButton(selectedStepElement){
@@ -382,6 +386,20 @@
             }
         }
 
+        function evaluateArrows(){
+            var w = window.innerWidth;
+            var container = stepContainer.offsetWidth;
+            if(container < w){
+                scrollArrows[0].style.display = "none";
+                scrollArrows[1].style.display = "none";
+            }
+            else{
+                scrollArrows[0].style.display = "block";
+                scrollArrows[1].style.display = "block";
+            }
+
+        }
+
         function makeSafeForCSS(name) {
             return name.replace(/[^a-z0-9]/g, function(s) {
                 var c = s.charCodeAt(0);
@@ -411,7 +429,7 @@
     </script>
     <div class="stepScrollableContrainer">
         <div class="scroll-arrow scroll-arrow--left" onclick="moveLeft()"></div>
-        <ul id="stepContainer" class="steps"></ul>
+        <ul id="stepContainer" class="steps" onresize="evaluateArrows()"></ul>
         <div class="scroll-arrow scroll-arrow--right" onclick="moveRight()"></div>
     </div>   
     <div class="stepProperties">

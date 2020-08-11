@@ -131,6 +131,7 @@ body {
   min-width: 28px;
   height: 28px;
   margin-right: 10px;
+  margin-left: 10px;
   border-radius: 50%;
   font-style: normal;
   font-size: 14px;
@@ -242,12 +243,29 @@ body {
   transform: scale(0.707) rotate(45deg);
 }
 
-.steps li:last-child > span:after {
+.steps li.completed {
+  border-right: 2px solid white;
+  padding: 0;
+}
+.steps li.completed:first-child {
+  padding-left: 20px;
+}
+.steps li.completed .steps__text {
+  display: none;
+}
+.steps li.completed span:after {
   display: none;
 }
 
-.steps li.completed > span:after {
-  background: #57b94f;
+.steps li.completed.selected {
+  padding: 0 40px 0 40px;
+}
+.steps li.completed.selected .steps__text {
+  display: block;
+}
+
+.steps li:last-child > span:after {
+  display: none;
 }
 
 .steps li.future > span:after {
