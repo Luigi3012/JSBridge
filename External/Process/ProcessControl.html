@@ -16,16 +16,21 @@
         var processControlConfiguration;
         var selectedView = "General";
         var readOnly = false;
+        // Elements 
         var selectedStepElement;
         var descElement;
+        var descIconElement;
         var buttonCurrentLabel;
         var buttonCompleteLabel;
+
         var processSteps = [];
 
         function init(){
             var urlParams = new URLSearchParams(window.location.search);
             var processControlName = urlParams.get("name");
             descElement = document.getElementById("descriptionContainer");
+            descIconElement = document.getElementById("descriptionIcon");
+            descIconElement.style.display = "none";
             var btn = document.getElementById('completeBtn');
             buttonCurrentLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Current", "Mark as Current Stage");
             buttonCompleteLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Completed", "Mark as Completed");
@@ -193,6 +198,7 @@
                 var btnElement = document.getElementById("completeBtn");
                 btnElement.className += " disabled";   
                 descElement.innerHTML = "";   
+                descIconElement.style.display = "none";
             }
             // Select
             element.className += " selected";
@@ -200,7 +206,10 @@
             updateCompleteButton(selectedStepElement);
             var step = processSteps.find(s => s.id === element.id);
             var stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);
-            descElement.innerHTML = stepDesc;                          
+            descElement.innerHTML = stepDesc;  
+            // Show asterisk if comment is filled
+            if(stepDesc)
+                descIconElement.style.display = "block";                                             
         }
 
         function updateCompleteButton(selectedStepElement){
@@ -309,6 +318,7 @@
         function loadStep(stepValue){
             if(!stepValue){
                 setNextElementsToState(-1, futureState);
+                setSelectedArrowState(document.getElementById(processSteps[0].id));
             }
             else{
                 var step = processSteps.find(s => s.textValue === stepValue + "");
@@ -355,7 +365,7 @@
         function moveLeft(){
             if(selectedStepElement){
                 var current = processSteps.find(s => s.id === selectedStepElement.id);
-                if(current && current.index - 1 > 0){
+                if(current && current.index - 1 >= 0){
                     var target = document.getElementById(processSteps[current.index - 1].id);
                     setSelectedArrowState(target);
                 }
@@ -405,6 +415,7 @@
         <div class="scroll-arrow scroll-arrow--right" onclick="moveRight()"></div>
     </div>   
     <div class="stepProperties">
+        <i id="descriptionIcon" class="stepProperties__description-icon"></i>
         <div id="descriptionContainer" class="stepProperties__description"></div>
         <button id="completeBtn" class="stepProperties__select-button disabled" onclick="buttonClicked()"></button>
     </div>
