@@ -189,7 +189,7 @@
         }
 
         function buttonClicked(){
-            if(selectedStepElement && isActive(selectedStepElement) &&  selectedStepElement.id === "finalStep"){
+            if(selectedStepElement && selectedStepElement.id === "finalStep"){
                 finalStep.openMessageBoxWithOptions();
             }
             else if(selectedStepElement && isActive(selectedStepElement)){
@@ -262,6 +262,11 @@
             if(!readOnly){       
                 var element = document.getElementById(finalStep.id);     
                 finalStep.openMessageBoxWithOptions();  
+                /*if(step){
+                    setStepOnEntity(step.textValue);                
+                    setPreviousElementsToState(step.index, completedState);
+                    setNextElementsToState(step.index, futureState);
+                }*/
             }
         }
 
