@@ -16,6 +16,7 @@
         var processControlConfiguration;
         var selectedView = "General";
         var readOnly = false;
+        var finalStep;
         // Elements 
         var selectedStepElement;
         var descElement;
@@ -24,22 +25,27 @@
         var buttonCompleteLabel;
         var stepContainer;
         var scrollArrows;
+        var btnElement;
 
         var processSteps = [];
 
         function init(){
             var urlParams = new URLSearchParams(window.location.search);
-            var processControlName = urlParams.get("name");
+            var processControlName = urlParams.get("name");           
+            initElements();
+            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, setUpProcessArrows, reportError, null);       
+            initOnChangeHandlers();
+        }
+
+        function initElements(){
             descElement = document.getElementById("descriptionContainer");
             descIconElement = document.getElementById("descriptionIcon");
             descIconElement.style.display = "none";
             scrollArrows = document.getElementsByClassName("scroll-arrow");
-            var btn = document.getElementById('completeBtn');
+            btnElement = document.getElementById('completeBtn');
             buttonCurrentLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Current", "Mark as Current Stage");
             buttonCompleteLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Completed", "Mark as Completed");
-            btn.innerHTML = buttonCurrentLabel;
-            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, setUpProcessArrows, reportError, null);       
-            initOnChangeHandlers();
+            btnElement.innerHTML = buttonCurrentLabel;
         }
 
         function initOnChangeHandlers(){
@@ -118,19 +124,30 @@
             readOnly = isReadonly;
         }
 
-        function reportError(error){
-            MobileCRM.bridge.alert(error);
-        }
-
         function setUpProcessArrows(jsonConfig){      
             loadColorSettings();
             processControlConfiguration = jsonConfig;
             processSteps = decodeStepDescriptions();
             stepContainer = document.getElementById("stepContainer");
+            var finalSteps = [];
+            var stepIndex = 0;
             for(var step of processSteps){
-                //let desc = field.shortDescription !== "undefined" ? field.shortDescription : "";
-                stepContainer.appendChild(htmlToElements(createArrow2(step)))
+                // Final steps will be merged into one with command dialog                
+                if(!step.isFinal){
+                    stepContainer.appendChild(htmlToElements(step.createArrow2()));
+                    stepIndex++;
+                }                  
+                else
+                    finalSteps.push(step);
             }
+            // Create final step with different methods than standard steps
+            var finalStepLabel = "Complete";
+            if(finalSteps.length > 0){
+                if(processControlConfiguration.finalStepLabel)
+                    finalStepLabel = processControlConfiguration.finalStepLabel;
+                finalStep = new FinalStep(finalStepLabel, stepIndex, finalSteps);
+                stepContainer.appendChild(htmlToElements(finalStep.createFinalStepHtml()));
+            }         
             loadCurrentStepFromEntity();
         }   
 
@@ -148,22 +165,11 @@
                     //decodeURIComponent(s.descriptionUrl);
                 }
                 if(s.isFinal)
-                    processStepObj.isFinal = s.isFinal;
+                    processStepObj.isFinal = s.isFinal === "True"? true: false;
                 processStepObj.index = stepObjects.length;
                 stepObjects.push(processStepObj);
             }     
             return stepObjects; 
-        }
-
-        function createArrow2(step){
-            var index = step.index + 1;
-            var arrowHtml = "<li id="+ step.id +" class=\"future\" onclick=\"arrowClicked(this.id)\">" +
-            "<i class=\"steps__index\">"+ index +"</i>"+
-            "<span class=\"steps__text\">" +
-            step.label
-            "</span>" +
-            "</li>";
-            return arrowHtml;
         }
 
         /**
@@ -183,7 +189,10 @@
         }
 
         function buttonClicked(){
-            if(selectedStepElement && isActive(selectedStepElement)){
+            if(selectedStepElement && isActive(selectedStepElement) &&  selectedStepElement.id === "finalStep"){
+                finalStep.openMessageBoxWithOptions();
+            }
+            else if(selectedStepElement && isActive(selectedStepElement)){
                 setArrowCompleted(selectedStepElement);
             }
             else if(selectedStepElement){
@@ -208,20 +217,21 @@
             selectedStepElement = element;
             updateCompleteButton(selectedStepElement);
             var step = processSteps.find(s => s.id === element.id);
-            var stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);
-            descElement.innerHTML = stepDesc;  
-            // Show asterisk if comment is filled
-            if(stepDesc)
-                descIconElement.style.display = "block";          
+            if(step){
+                var stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);
+                descElement.innerHTML = stepDesc;  
+                // Show asterisk if comment is filled
+                if(stepDesc)
+                    descIconElement.style.display = "block";       
+            }               
             evaluateArrows();                                   
         }
 
         function updateCompleteButton(selectedStepElement){
             if(!readOnly){ // Disable complete button in readonly mode
-                var btnElement = document.getElementById("completeBtn");
                 btnElement.classList.remove("disabled");
                 btnElement.className += " active";
-                if(isActive(selectedStepElement)){
+                if(isActive(selectedStepElement) || selectedStepElement.id === "finalStep"){
                     btnElement.innerHTML = buttonCompleteLabel;                    
                 }
                 else{
@@ -238,13 +248,20 @@
             if(!readOnly){           
                 var elementId = element.id;   
                 var stateFromClass = element.className;
+                setArrowCssClass(element, activeState, true);
                 var step = processSteps.find(s => s.id === elementId);         
                 if(step){
-                    setStepOnEntity(step.textValue);
-                    setArrowCssClass(element, activeState, true);
+                    setStepOnEntity(step.textValue);                
                     setPreviousElementsToState(step.index, completedState);
                     setNextElementsToState(step.index, futureState);
                 }
+            }
+        }
+
+        function setFinalStep(){    
+            if(!readOnly){       
+                var element = document.getElementById(finalStep.id);     
+                finalStep.openMessageBoxWithOptions();  
             }
         }
 
@@ -259,41 +276,15 @@
                     setNextElementsToState(step.index, futureState);
                     if(processSteps.length > step.index + 1){
                         var nextElement = document.getElementById(processSteps[step.index + 1].id);
-                        setArrowActive(nextElement);
+                        if(nextElement)
+                            setArrowActive(nextElement);
+                        else
+                            setFinalStep()                 
                     }
                     else{
                         element.className += " selected";
                         updateCompleteButton(element);
                     }
-                }
-            }
-        }
-
-        function setArrowState(element){
-            if(!readOnly){           
-                var elementId = element.id;   
-                var stateFromClass = element.className;
-                var step = processSteps.find(s => s.id === elementId);          
-                if(step){
-                    switch(stateFromClass) {
-                    case activeState:                                     
-                        setArrowCssClass(element, completedState);
-                        setPreviousElementsToState(step.index, completed);
-                        setNextElementsToState(step.index, futureState);
-                        break;
-                    case completedState:
-                        setStepOnEntity(step.textValue);
-                        setArrowCssClass(element, activeState);
-                        setPreviousElementsToState(step.index, completedState);
-                        setNextElementsToState(step.index, futureState);
-                        break;
-                    case futureState:                
-                        setStepOnEntity(step.textValue);
-                        setArrowCssClass(element, activeState);
-                        setPreviousElementsToState(step.index, completedState);
-                        setNextElementsToState(step.index, futureState);
-                        break;
-                    } 
                 }
             }
         }
@@ -326,13 +317,26 @@
             }
             else{
                 var step = processSteps.find(s => s.textValue === stepValue + "");
-                var element = document.getElementById(step.id);            
-                if(element){            
-                    setArrowCssClass(element, activeState);
-                    setPreviousElementsToState(step.index, completedState);
-                    setNextElementsToState(step.index, futureState);
-                    setSelectedArrowState(element);
-                }      
+                if(step && !step.isFinal){
+                    var element = document.getElementById(step.id);            
+                    if(element){            
+                        setArrowCssClass(element, activeState);
+                        setPreviousElementsToState(step.index, completedState);
+                        setNextElementsToState(step.index, futureState);
+                        setSelectedArrowState(element);
+                    }
+                }
+                else if(step){
+                    var element = document.getElementById(finalStep.id);  
+                    if(element){            
+                        setArrowCssClass(element, completedState);
+                        setPreviousElementsToState(processSteps.length, completedState);
+                        setSelectedArrowState(element);
+                        evaluateArrows();
+                    }
+                }
+                else
+                    MobileCRM.bridge.alert(stepValue + " is not defined as process step"); // TODO: Localize this                    
             }       
         }
 
@@ -358,13 +362,21 @@
                 var element = document.getElementById(processSteps[i].id);
                 setArrowCssClass(element, state);
             }
+            if(finalStep){
+                var element = document.getElementById(finalStep.id);
+                setArrowCssClass(element, state);
+            }
         }
 
         function setArrowCssClass(element, state, scroll = false){
-            if(scroll)
-                element.scrollIntoView(true);
-            element.className = state;                
+            if(element){
+                if(scroll)
+                    element.scrollIntoView(true);
+                element.className = state;  
+            }                    
         }
+
+        // Scroll arrows related
 
         function moveLeft(){
             if(selectedStepElement){
@@ -400,6 +412,8 @@
 
         }
 
+        // Utils
+
         function makeSafeForCSS(name) {
             return name.replace(/[^a-z0-9]/g, function(s) {
                 var c = s.charCodeAt(0);
@@ -407,6 +421,10 @@
                 if (c >= 65 && c <= 90) return '_' + s.toLowerCase();
                 return '__' + ('000' + c.toString(16)).slice(-4);
             });
+        }
+
+        function reportError(error){
+            MobileCRM.bridge.alert(error);
         }
 
         class ProcessStep{
@@ -424,6 +442,61 @@
                 this.id = makeSafeForCSS(textValue);
             }
 
+            createArrow2(){
+                var index = this.index + 1;
+                var arrowHtml = "<li id="+ this.id +" class=\"future\" onclick=\"arrowClicked(this.id)\">" +
+                "<i class=\"steps__index\">"+ index +"</i>"+
+                "<span class=\"steps__text\">" +
+                this.label
+                "</span>" +
+                "</li>";
+                return arrowHtml;
+            }
+
+        }
+
+        class FinalStep{
+
+            constructor(label, index, steps){
+                this.label = label;
+                this.index = index;
+                this.steps = steps; // ProcessStep[] where isFinal === true
+                this.id = "finalStep"; // Constant - there will be always only one step
+                this.cancelButtonLabel = "Cancel"; //TODO: get from localization
+            }
+
+            createFinalStepHtml(){
+                var arrowHtml = "<li id="+ this.id +" class=\"future\" onclick=\"arrowClicked(this.id)\">" +
+                "<i class=\"steps__index\">"+ this.index +"</i>"+
+                "<span class=\"steps__text\">" +
+                this.label
+                "</span>" +
+                "</li>";
+                return arrowHtml;
+            }
+
+            openMessageBoxWithOptions(){
+                var popup = new MobileCRM.UI.MessageBox(this.label);
+                /// Add the buttons for message box
+                var labels = this.steps.map(s => s.label);
+                labels.push(this.cancelButtonLabel); // TODO: Add possibility to localize this
+                popup.items = labels;
+                /// If title is too long set the 'multi-line' to true
+                popup.multiLine = true;
+                popup.show(button => this.finishProcess(button),
+                    function (err) { MobileCRM.bridge.alert(err); }
+                );
+            }
+
+            finishProcess(button){
+                if (button !== this.cancelButtonLabel){
+                    var step = this.steps.find(s => s.label === button);
+                    setStepOnEntity(step.textValue);
+                    var element = document.getElementById(this.id)
+                    setArrowCssClass(element, completedState);               
+                }   
+                return;
+            }
         }
         
     </script>
