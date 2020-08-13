@@ -261,15 +261,10 @@
             }
         }
 
-        function setFinalStep(){    
+        function setFinalStep(failCallback){    
             if(!readOnly){       
                 var element = document.getElementById(finalStep.id);     
-                finalStep.openMessageBoxWithOptions();  
-                /*if(step){
-                    setStepOnEntity(step.textValue);                
-                    setPreviousElementsToState(step.index, completedState);
-                    setNextElementsToState(step.index, futureState);
-                }*/
+                finalStep.openMessageBoxWithOptions(failCallback);  
             }
         }
 
@@ -287,7 +282,7 @@
                         if(nextElement)
                             setArrowActive(nextElement);
                         else
-                            setFinalStep()                 
+                            setFinalStep(()=> setArrowCssClass(element, activeState));       
                     }
                     else{
                         element.className += " selected";
@@ -493,7 +488,7 @@
                 return arrowHtml;
             }
 
-            openMessageBoxWithOptions(){
+            openMessageBoxWithOptions(failCallback){
                 var popup = new MobileCRM.UI.MessageBox(this.label);
                 /// Add the buttons for message box
                 var labels = this.steps.map(s => s.label);
@@ -501,18 +496,24 @@
                 popup.items = labels;
                 /// If title is too long set the 'multi-line' to true
                 popup.multiLine = true;
-                popup.show(button => this.finishProcess(button),
-                    function (err) { MobileCRM.bridge.alert(err); }
+                popup.show(button => this.finishProcess(button, failCallback),
+                    function (err) {
+                        MobileCRM.bridge.alert(err); 
+                        if(failCallback)
+                            failCallback();
+                    }
                 );
             }
 
-            finishProcess(button){
+            finishProcess(button, failCallback){
                 if (button !== this.cancelButtonLabel){
                     var step = this.steps.find(s => s.label === button);
                     setStepOnEntity(step.textValue);
                     var element = document.getElementById(this.id)
                     setArrowCssClass(element, completedState);               
-                }   
+                }
+                else if(failCallback)
+                    failCallback();               
                 return;
             }
         }
