@@ -343,8 +343,10 @@
                         evaluateArrows();
                     }
                 }
-                else
-                    MobileCRM.bridge.alert(stepValue + " is not defined as process step value."); // TODO: Localize this                    
+                else{
+                    var errorMessage = MobileCRM.Localization.getTextOrDefault("Process.Button.UnknownValue", "Value is not defined as process step value.");
+                    MobileCRM.bridge.alert(stepValue + ": " + errorMessage); 
+                }                               
             }       
         }
 
@@ -478,7 +480,7 @@
                 this.index = index;
                 this.steps = steps; // ProcessStep[] where isFinal === true
                 this.id = "finalStep"; // Constant - there will be always only one step
-                this.cancelButtonLabel = "Cancel"; //TODO: get from localization
+                this.cancelButtonLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Cancel", "Cancel");
             }
 
             createFinalStepHtml(){
@@ -495,7 +497,7 @@
                 var popup = new MobileCRM.UI.MessageBox(this.label);
                 /// Add the buttons for message box
                 var labels = this.steps.map(s => s.label);
-                labels.push(this.cancelButtonLabel); // TODO: Add possibility to localize this
+                labels.push(this.cancelButtonLabel);
                 popup.items = labels;
                 /// If title is too long set the 'multi-line' to true
                 popup.multiLine = true;
