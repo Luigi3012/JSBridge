@@ -145,6 +145,8 @@
             if(finalSteps.length > 0){
                 if(processControlConfiguration.finalStepLabel)
                     finalStepLabel = processControlConfiguration.finalStepLabel;
+                if(processControlConfiguration.finalStepDescription)
+                    finalStepLabel = processControlConfiguration.finalStepDescription;
                 finalStep = new FinalStep(finalStepLabel, stepIndex, finalSteps);
                 stepContainer.appendChild(htmlToElements(finalStep.createFinalStepHtml()));
             }         
@@ -341,7 +343,7 @@
                     }
                 }
                 else
-                    MobileCRM.bridge.alert(stepValue + " is not defined as process step"); // TODO: Localize this                    
+                    MobileCRM.bridge.alert(stepValue + " is not defined as process step value."); // TODO: Localize this                    
             }       
         }
 
@@ -387,7 +389,12 @@
             if(selectedStepElement){
                 var current = processSteps.find(s => s.id === selectedStepElement.id);
                 if(current && current.index - 1 >= 0){
-                    var target = document.getElementById(processSteps[current.index - 1].id);
+                    var target = document.getElementById(processSteps[current.index - 1].id);                 
+                    setSelectedArrowState(target);
+                }
+                else{
+                    var notFinalSteps = processSteps.filter(s => !s.isFinal);
+                    target = document.getElementById(notFinalSteps[notFinalSteps.length - 1].id);
                     setSelectedArrowState(target);
                 }
             }          
@@ -398,8 +405,10 @@
                 var current = processSteps.find(s => s.id === selectedStepElement.id);
                 if(current && processSteps.length > current.index + 1){
                     var target = document.getElementById(processSteps[current.index + 1].id);
+                    if(!target)
+                        target = document.getElementById(finalStep.id);
                     setSelectedArrowState(target);
-                }
+                }               
             }
         }
 
