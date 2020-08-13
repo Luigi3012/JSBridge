@@ -146,8 +146,9 @@
                 if(processControlConfiguration.finalStepLabel)
                     finalStepLabel = processControlConfiguration.finalStepLabel;
                 if(processControlConfiguration.finalStepDescription)
-                    finalStepLabel = processControlConfiguration.finalStepDescription;
+                    finalStepDescription = processControlConfiguration.finalStepDescription;
                 finalStep = new FinalStep(finalStepLabel, stepIndex, finalSteps);
+                finalStep.description = finalStepDescription;
                 stepContainer.appendChild(htmlToElements(finalStep.createFinalStepHtml()));
             }         
             loadCurrentStepFromEntity();
@@ -392,7 +393,8 @@
                     var target = document.getElementById(processSteps[current.index - 1].id);                 
                     setSelectedArrowState(target);
                 }
-                else{
+                else if(!current)   // Moving from aggregate final step
+                {
                     var notFinalSteps = processSteps.filter(s => !s.isFinal);
                     target = document.getElementById(notFinalSteps[notFinalSteps.length - 1].id);
                     setSelectedArrowState(target);
@@ -405,7 +407,7 @@
                 var current = processSteps.find(s => s.id === selectedStepElement.id);
                 if(current && processSteps.length > current.index + 1){
                     var target = document.getElementById(processSteps[current.index + 1].id);
-                    if(!target)
+                    if(!target) // Moving to aggregate final step
                         target = document.getElementById(finalStep.id);
                     setSelectedArrowState(target);
                 }               
