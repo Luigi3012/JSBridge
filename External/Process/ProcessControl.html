@@ -142,13 +142,14 @@
             }
             // Create final step with different methods than standard steps
             var finalStepLabel = "Complete";
+            var finalStepDescription = "";
             if(finalSteps.length > 0){
                 if(processControlConfiguration.finalStepLabel)
                     finalStepLabel = processControlConfiguration.finalStepLabel;
                 if(processControlConfiguration.finalStepDescription)
                     finalStepDescription = processControlConfiguration.finalStepDescription;
                 finalStep = new FinalStep(finalStepLabel, stepIndex, finalSteps);
-                finalStep.description = finalStepDescription;
+                finalStep.shortDescription = finalStepDescription;
                 stepContainer.appendChild(htmlToElements(finalStep.createFinalStepHtml()));
             }         
             loadCurrentStepFromEntity();
@@ -220,13 +221,16 @@
             selectedStepElement = element;
             updateCompleteButton(selectedStepElement);
             var step = processSteps.find(s => s.id === element.id);
-            if(step){
-                var stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);
-                descElement.innerHTML = stepDesc;  
+            var stepDesc = null;
+            if(step)
+                stepDesc = (step.shortDescription === "undefined" ? "": step.shortDescription);   
+            else if(element.id === finalStep.id)
+                stepDesc = (finalStep.shortDescription === "undefined" ? "": finalStep.shortDescription);             
+            if(stepDesc){
                 // Show asterisk if comment is filled
-                if(stepDesc)
-                    descIconElement.style.display = "block";       
-            }               
+                descIconElement.style.display = "block";    
+                descElement.innerHTML = stepDesc;  
+            }                     
             evaluateArrows();                                   
         }
 
