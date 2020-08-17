@@ -33,7 +33,7 @@
             var urlParams = new URLSearchParams(window.location.search);
             var processControlName = urlParams.get("name");           
             initElements();
-            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, setUpProcessArrows, reportError, null);       
+            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, getValidSteps, reportError, null);       
             initOnChangeHandlers();
         }
 
@@ -98,6 +98,32 @@
 			}
         }
                 
+                
+        function getValidSteps(jsonConfig){
+            processControlConfiguration = jsonConfig;
+            var validSteps = [];
+            MobileCRM.Metadata.getOptionSetValues(
+                processControlConfiguration.entity,
+                processControlConfiguration.field,
+                function (optionSetValues) {
+                    if(optionSetValues && optionSetValues.length > 0){
+                        /// <param name="optionSetValues" type="Object"></param>                    
+                        var optionSetStringValues = Object.values(optionSetValues).map(v => v + "");
+                        for(var step of processControlConfiguration.steps){
+                            if(optionSetStringValues.indexOf(step.value) > -1)
+                                validSteps.push(step);
+                        }
+                        processControlConfiguration.steps = validSteps;
+                    }               
+                    setUpProcessArrows();
+                }, 
+                (error) => {
+                    MobileCRM.bridge.alert(error);
+                    setUpProcessArrows();
+                }, 
+                null
+            );
+        }
 
         function isFieldEditable(entityForm) {
 			var detailViews = entityForm.detailViews;
@@ -124,10 +150,9 @@
             readOnly = isReadonly;
         }
 
-        function setUpProcessArrows(jsonConfig){      
-            loadColorSettings();
-            processControlConfiguration = jsonConfig;
-            processSteps = decodeStepDescriptions();
+        function setUpProcessArrows(){      
+            loadColorSettings();            
+            processSteps = decodeStepDescriptions(processControlConfiguration.steps);
             stepContainer = document.getElementById("stepContainer");
             var finalSteps = [];
             var stepIndex = 1;
@@ -155,9 +180,9 @@
             loadCurrentStepFromEntity();
         }   
 
-        function decodeStepDescriptions(){
+        function decodeStepDescriptions(steps){
             var stepObjects = [];
-            for(var s of processControlConfiguration.steps){                
+            for(var s of steps){                
                 s.value = decodeURIComponent(s.value);
                 s.label = decodeURIComponent(s.label);
                 var processStepObj = new ProcessStep(s.label, s.value);
