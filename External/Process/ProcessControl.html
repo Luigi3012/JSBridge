@@ -17,6 +17,8 @@
         var selectedView = "General";
         var readOnly = false;
         var finalStep;
+        var entityMeta;
+        var hiddenItem;
         // Elements 
         var selectedStepElement;
         var descElement;
@@ -33,7 +35,7 @@
             var urlParams = new URLSearchParams(window.location.search);
             var processControlName = urlParams.get("name");           
             initElements();
-            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, getValidSteps, reportError, null);       
+            MobileCRM.bridge.command("getProcessControlConfiguration", processControlName, validateConfigAndInitialize, reportError, null);       
             initOnChangeHandlers();
         }
 
@@ -47,6 +49,27 @@
             buttonCompleteLabel = MobileCRM.Localization.getTextOrDefault("Process.Button.Completed", "Mark as Completed");
             btnElement.innerHTML = buttonCurrentLabel;
         }
+
+        function validateConfigAndInitialize(jsonConfig){
+            loadColorSettings();     
+            processControlConfiguration = jsonConfig;
+            processSteps = decodeStepDescriptions(processControlConfiguration.steps);
+            var checkStepsFunction = checkOptionSetSteps;
+            MobileCRM.Metadata.requestObject(metaData => {	
+                entityMeta = metaData;
+                var entity = entityMeta.getEntity(processControlConfiguration.entity);
+                if (entity) {
+                    var prop = entity.getProperty(processControlConfiguration.field);
+                    if(prop && prop.type === 16)
+                    checkStepsFunction = checkStringlistSteps;                        	
+                }
+                checkStepsFunction(setUpProcessArrows);
+            }, 
+            error => {
+                MobileCRM.bridge.alert(error);
+                checkStepsFunction(setUpProcessArrows);
+            }, [this]);                 
+        }    
 
         function initOnChangeHandlers(){
             MobileCRM.UI.EntityForm.onChange(
@@ -81,50 +104,21 @@
 				continueWith(true);
 			}	
 			else {
-				MobileCRM.Metadata.requestObject(metaData => {		
-                    var entity = metaData.getEntity(entityForm.entity.entityName);
-                    if (entity) {
-                        var prop = entity.getProperty(processControlConfiguration.field);
-                        if (!prop)
-                            continueWith(true);
-                        else if (prop.permission === 2) //can create
-                            continueWith(true);
-                        else if ((prop.permission & 2) == 0)
-                            continueWith(true);
-                        else
-                            continueWith(false);
-                    }
-				}, MobileCRM.bridge.alert, [this]);
+				var entity = entityMeta.getEntity(entityForm.entity.entityName);
+                if (entity) {
+                    var prop = entity.getProperty(processControlConfiguration.field);
+                    if (!prop)
+                        continueWith(true);
+                    else if (prop.permission === 2) //can create
+                        continueWith(true);
+                    else if ((prop.permission & 2) == 0)
+                        continueWith(true);
+                    else
+                        continueWith(false);
+                }
 			}
         }
                 
-                
-        function getValidSteps(jsonConfig){
-            processControlConfiguration = jsonConfig;
-            var validSteps = [];
-            MobileCRM.Metadata.getOptionSetValues(
-                processControlConfiguration.entity,
-                processControlConfiguration.field,
-                function (optionSetValues) {
-                    if(optionSetValues && optionSetValues.length > 0){
-                        /// <param name="optionSetValues" type="Object"></param>                    
-                        var optionSetStringValues = Object.values(optionSetValues).map(v => v + "");
-                        for(var step of processControlConfiguration.steps){
-                            if(optionSetStringValues.indexOf(step.value) > -1)
-                                validSteps.push(step);
-                        }
-                        processControlConfiguration.steps = validSteps;
-                    }               
-                    setUpProcessArrows();
-                }, 
-                (error) => {
-                    MobileCRM.bridge.alert(error);
-                    setUpProcessArrows();
-                }, 
-                null
-            );
-        }
-
         function isFieldEditable(entityForm) {
 			var detailViews = entityForm.detailViews;
 			var item;
@@ -142,17 +136,24 @@
 			}
 			if (item) {
 				return item.isEnabled;
-			}
+            }
+            // If no detailItem for selected field is present, add hidden item with same name to make sure onchange still works
+            if(detailViews && detailViews.length > 0){
+                hiddenItem = new MobileCRM.UI.DetailViewItems.LinkItem(processControlConfiguration.field, processControlConfiguration.field, MobileCRM.UI.DetailViewItems.DropDownFormat.StringList);
+                hiddenItem.value = "0";
+                hiddenItem.isVisible = false;
+			    detailViews[0].insertItem(hiddenItem, -1); // Place item as the last one.
+            }                
 			return true;
-		}
-
+        }
+        
         function setMode(isReadonly){
             readOnly = isReadonly;
         }
 
-        function setUpProcessArrows(){      
-            loadColorSettings();            
-            processSteps = decodeStepDescriptions(processControlConfiguration.steps);
+        
+
+        function setUpProcessArrows(){             
             stepContainer = document.getElementById("stepContainer");
             var finalSteps = [];
             var stepIndex = 1;
@@ -263,12 +264,10 @@
             if(!readOnly){ // Disable complete button in readonly mode
                 btnElement.classList.remove("disabled");
                 btnElement.className += " active";
-                if(isActive(selectedStepElement) || selectedStepElement.id === "finalStep"){
-                    btnElement.innerHTML = buttonCompleteLabel;                    
-                }
-                else{
-                    btnElement.innerHTML = buttonCurrentLabel;
-                }
+                if(isActive(selectedStepElement) || selectedStepElement.id === "finalStep")
+                    btnElement.innerHTML = buttonCompleteLabel;                                   
+                else
+                    btnElement.innerHTML = buttonCurrentLabel;       
             }
         }
 
@@ -324,8 +323,12 @@
         function setStepOnEntity(value){
             MobileCRM.UI.EntityForm.requestObject(
                 function (entityForm) {
-                    entityForm.entity.properties[processControlConfiguration.field] = value
-                    MobileCRM.UI.EntityForm.save();
+                    entityForm.entity.properties[processControlConfiguration.field] = value;
+                    var detailView = entityForm.getDetailView("General");
+                    // Set value to hidden detailitem to trigger onchange with selected value
+                    if (hiddenItem)
+                        hiddenItem.value = value;
+                    loadStep(value);     
                 },
                 function (err) { MobileCRM.bridge.alert(err); }
             );   
@@ -455,6 +458,64 @@
         }
 
         // Utils
+
+        /**
+         * For stringLists only, check whether configured step values still exist on entity.
+         * If steps cannot be checked, all steps will be used.
+         * @param {function} callback - after checking the stepValues.
+         */
+         function checkStringlistSteps(callback){
+            MobileCRM.Localization.initialize(
+                function (Localization) {
+                    var entity = processControlConfiguration.entity;
+                    var field = processControlConfiguration.field;
+                    var options = MobileCRM.Metadata.getStringListOptions(entity, field);
+                    if(options){
+                        var validSteps = [];
+                        for(var step of processSteps){                      
+                            if(options[entity + "." + field + "." + step.textValue])
+                                validSteps.push(step);      
+                        }
+                        processSteps = validSteps;
+                    }                  
+                    callback();
+                }, 
+                (error) => {
+                    MobileCRM.bridge.alert(error);
+                    callback();
+                }, 
+                null
+            );
+        }
+
+        /**
+         * For for optionsteps only, check whether configured step values still exist on entity.
+         * If steps cannot be checked, all steps will be used.
+         * @param {function} callback - after checking the stepValues.
+         */
+        function checkOptionSetSteps(callback){         
+            var validSteps = [];
+            MobileCRM.Metadata.getOptionSetValues(
+                processControlConfiguration.entity,
+                processControlConfiguration.field,
+                function (optionSetValues) {
+                    if(optionSetValues && optionSetValues.length > 0){                 
+                        var optionSetStringValues = Object.values(optionSetValues).map(v => v + "");
+                        for(var step of processSteps){
+                            if(optionSetStringValues.indexOf(step.textValue) > -1)
+                                validSteps.push(step);
+                        }
+                        processSteps = validSteps;
+                    }               
+                    callback();
+                }, 
+                (error) => {
+                    MobileCRM.bridge.alert(error);
+                    callback();
+                }, 
+                null
+            );
+        }
 
         function makeSafeForCSS(name) {
             return name.replace(/[^a-z0-9]/g, function(s) {
