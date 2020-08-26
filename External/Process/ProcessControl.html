@@ -346,10 +346,8 @@
         }
    
         function loadStep(stepValue){
-            if(!stepValue){
-                setNextElementsToState(-1, futureState);
-                setSelectedArrowState(document.getElementById(processSteps[0].id));
-            }
+            if(!stepValue)
+                resetProcessComponent();
             else{
                 var step = processSteps.find(s => s.textValue === stepValue + "");
                 if(step && !step.isFinal){
@@ -373,8 +371,14 @@
                 else{
                     var errorMessage = MobileCRM.Localization.getTextOrDefault("Process.Button.UnknownValue", "Value is not defined as process step value.");
                     MobileCRM.bridge.alert(stepValue + ": " + errorMessage); 
+                    resetProcessComponent();
                 }                               
             }       
+        }
+
+        function resetProcessComponent(){
+            setNextElementsToState(-1, futureState);
+            setSelectedArrowState(document.getElementById(processSteps[0].id));
         }
 
         function loadColorSettings(){
