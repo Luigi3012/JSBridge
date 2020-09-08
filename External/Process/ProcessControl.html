@@ -368,6 +368,8 @@
                         evaluateArrows();
                     }
                 }
+                else if(stepValue === -1)   // Default option (empty) for Dynamics, not really a step
+                    resetProcessComponent();
                 else{
                     var errorMessage = MobileCRM.Localization.getTextOrDefault("Process.Button.UnknownValue", "Value is not defined as process step value.");
                     MobileCRM.bridge.alert(stepValue + ": " + errorMessage); 
